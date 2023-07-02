@@ -5,6 +5,7 @@ from surprise.model_selection import cross_validate
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from sklearn.metrics.pairwise import linear_kernel
 from nltk.stem.snowball import SnowballStemmer
+from sklearn.preprocessing import MinMaxScaler
 
 
 
@@ -190,6 +191,71 @@ class Model:
         return titles.iloc[movie_indices].head(size)
 
 
+    def hybridImdbsRecommenderModel(self ,title, similarity_weight=0.7, top_n=10):
+        movies = self.movies
+        keywords = self.keywords
+        credits = self.credits
+
+        movies['id'] = movies['id'].astype('object')
+        df = movies.merge(keywords, on='id')
+        movies['id'] = movies['id'].astype('int64')
+        df = movies.merge(credits, on='id')
+
+        df['original_language'] = df['original_language'].fillna('')
+        df['runtime'] = df['runtime'].fillna(0)
+        df['tagline'] = df['tagline'].fillna('')
+
+        df.dropna(inplace=True)
+
+        R = df['vote_average']
+        v = df['vote_count']
+        m = df['vote_count'].quantile(0.8)
+        C = df['vote_average'].mean()
+
+        df['weighted_average'] = (R * v + C * m) / (v + m)
+
+        scaler = MinMaxScaler()
+        scaled = scaler.fit_transform(df[['popularity', 'weighted_average']])
+        weighted_df = pd.DataFrame(scaled, columns=['popularity', 'weighted_average'])
+
+        weighted_df.index = df['original_title']
+        weighted_df['score'] = weighted_df['weighted_average'] * 0.4 + weighted_df['popularity'].astype('float64') * 0.6
+        weighted_df_sorted = weighted_df.sort_values(by='score', ascending=False)
+        temp = ['original_language', 'original_title', 'overview', 'tagline', 'name_genres',
+                'name_production_countries',
+                'name_production_companies', 'name_crew', 'department_crew', 'job_crew', 'character_cast']
+        hybrid_df = df[temp]
+
+        hybrid_df['bag_of_words'] = ''
+        hybrid_df['bag_of_words'] = hybrid_df[hybrid_df.columns[1:]].apply(lambda x: ' '.join(x), axis=1)
+        hybrid_df.set_index('original_title', inplace=True)
+
+        hybrid_df = hybrid_df[['bag_of_words']]
+
+        hybrid_df = weighted_df_sorted[:10000].merge(hybrid_df, left_index=True, right_index=True, how='left')
+
+        hybrid_df['bag_of_words'] = hybrid_df['bag_of_words'].fillna('')
+
+        tfidf = TfidfVectorizer(analyzer="word", stop_words='english', ngram_range=(1, 2), min_df=0)
+        tfidf_matrix = tfidf.fit_transform(hybrid_df['bag_of_words'])
+
+        cos_sim = linear_kernel(tfidf_matrix)
+
+        data = hybrid_df.reset_index()
+        index_movie = data[data['original_title'] == title].index
+        similarity = cos_sim[index_movie].T
+
+        sim_df = pd.DataFrame(similarity, columns=['similarity'])
+        final_df = pd.concat([data, sim_df], axis=1)
+  
+        final_df['final_score'] = final_df['score'] * (1 - similarity_weight) + final_df[
+            'similarity'] * similarity_weight
+
+        final_df_sorted = final_df.sort_values(by='final_score', ascending=False).head(top_n)
+        final_df_sorted.set_index('original_title', inplace=True)
+
+
+        return final_df_sorted[['score', 'similarity', 'final_score']]
 
 
 
