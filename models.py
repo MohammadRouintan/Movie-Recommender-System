@@ -247,7 +247,7 @@ class Model:
 
         sim_df = pd.DataFrame(similarity, columns=['similarity'])
         final_df = pd.concat([data, sim_df], axis=1)
-  
+
         final_df['final_score'] = final_df['score'] * (1 - similarity_weight) + final_df[
             'similarity'] * similarity_weight
 
