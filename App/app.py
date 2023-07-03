@@ -6,6 +6,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from sklearn.metrics.pairwise import linear_kernel, cosine_similarity
 from PIL import Image
 from io import BytesIO
+import concurrent.futures
 
 movies_meta = pd.read_csv('data/MetadataBasedRecommenderData.csv')
 movies_meta['combine'] = movies_meta['combine'].fillna('')
@@ -87,13 +88,21 @@ selected_movie3 = st.selectbox(
 )
 
 if st.button('Recommend', key=10):
-    recommended_movie_names1, recommended_movie_posters1, movies_indices1 = recommender(selected_movie1)
-    recommended_movie_names2, recommended_movie_posters2, movies_indices2 = recommender(selected_movie2)
-    recommended_movie_names3, recommended_movie_posters3, movies_indices3 = recommender(selected_movie3)
-
-    set1, indices1 = combine_recommendation(selected_movie1, movies_indices2 + movies_indices3)
-    set2, indices2 = combine_recommendation(selected_movie2, movies_indices1 + movies_indices3)
-    set3, indices3 = combine_recommendation(selected_movie3, movies_indices1 + movies_indices2)
+    pool = concurrent.futures.ThreadPoolExecutor(max_workers=10)
+    
+    recommended_movie_names1, recommended_movie_posters1, movies_indices1 = pool.submit(recommender ,selected_movie1)
+    recommended_movie_names2, recommended_movie_posters2, movies_indices2 = pool.submit(recommender ,selected_movie2)
+    recommended_movie_names3, recommended_movie_posters3, movies_indices3 = pool.submit(recommender ,selected_movie3)
+    
+    pool.shutdown(wait=True)
+    
+    pool2 = concurrent.futures.ThreadPoolExecutor(max_workers=10)
+    
+    set1, indices1 = pool2.submit(combine_recommendation ,selected_movie1, movies_indices2 + movies_indices3)
+    set2, indices2 = pool2.submit(combine_recommendation ,selected_movie2, movies_indices1 + movies_indices3)
+    set3, indices3 = pool2.submit(combine_recommendation ,selected_movie3, movies_indices1 + movies_indices2)\
+        
+    pool2.shutdown(wait=True)
 
     intersection_names = list(set1 & set2 & set3)
     indices = list(indices1 & indices2 & indices3)
