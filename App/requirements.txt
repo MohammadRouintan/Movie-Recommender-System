@@ -1,0 +1,4 @@
+### dependency
+streamlit
+scikit-learn
+scikit-surprise
