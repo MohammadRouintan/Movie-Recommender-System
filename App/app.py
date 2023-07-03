@@ -97,7 +97,6 @@ if st.button('Recommend', key=10):
     pool.shutdown(wait=True)
     
     pool2 = concurrent.futures.ThreadPoolExecutor(max_workers=10)
-    
     set1, indices1 = pool2.submit(combine_recommendation ,selected_movie1, movies_indices2 + movies_indices3)
     set2, indices2 = pool2.submit(combine_recommendation ,selected_movie2, movies_indices1 + movies_indices3)
     set3, indices3 = pool2.submit(combine_recommendation ,selected_movie3, movies_indices1 + movies_indices2)\
