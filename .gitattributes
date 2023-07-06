@@ -1,0 +1,6 @@
+App/data filter=lfs diff=lfs merge=lfs -text
+App/data/MovieBasedRecommender.csv filter=lfs diff=lfs merge=lfs -text
+App/data/ratings_small.csv filter=lfs diff=lfs merge=lfs -text
+App/data/movie_id.csv filter=lfs diff=lfs merge=lfs -text
+App/data/movies_list.csv filter=lfs diff=lfs merge=lfs -text
+App/model/SVD.joblib filter=lfs diff=lfs merge=lfs -text
